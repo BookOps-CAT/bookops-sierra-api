@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "bookops-sierra-api"
+version = "0.1.0"
+description = "BookOps Sierra API (Innovative Interfaces) wrapper utilizing Requests library"
+authors = ["klinga <klingaroo@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+requests = "^2.22"
+oauthlib = "^3.1"
+requests-oauthlib = "^1.2"
+
+[tool.poetry.dev-dependencies]
+pytest = "^3.0"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
