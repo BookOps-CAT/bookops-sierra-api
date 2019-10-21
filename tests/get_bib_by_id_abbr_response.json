@@ -1,0 +1,31 @@
+{
+    "id":"10000002",
+    "updatedDate":"2011-10-17T23:42:16Z",
+    "createdDate":"2008-12-13T15:46:45Z",
+    "deleted":false,
+    "suppressed":false,
+    "lang":
+        {
+            "code":"ger",
+            "name":"German"
+        },
+    "title":"Dante Alighieri 1985 : in memoriam Hermann Gmelin",
+    "author":"",
+    "materialType":
+        {
+            "code":"a",
+            "value":"BOOK/TEXT"
+        },
+    "bibLevel":
+        {
+        "code":"m",
+        "value":"MONOGRAPH"
+        },
+    "publishYear":1985,
+    "catalogDate":"2000-12-15",
+    "country":
+        {
+            "code":"gw ",
+            "name":"Germany"
+        }
+}

@@ -4,6 +4,7 @@ from oauthlib.oauth2 import BackendApplicationClient
 from requests import Request
 from requests.auth import HTTPBasicAuth
 from requests_oauthlib import OAuth2Session
+from oauthlib.oauth2.rfc6749.errors import MissingTokenError
 
 
 class SierraSession(OAuth2Session):
@@ -28,13 +29,23 @@ class SierraSession(OAuth2Session):
     for resources (session and each requests headers are merged following
     requests module logic).
 
+    Session sets default response content type to JSON.
+
     """
 
     def __init__(self, base_url, key, secret):
 
+        if type(base_url) is not str:
+            raise TypeError('Sierra API base URL is missing')
+        if type(key) is not str:
+            raise TypeError('Sierra API key must be a string')
+        if type(secret) is not str:
+            raise TypeError('Sierra API secret must be a string')
+
         self.base_url = base_url
         self.key = key
         self.secret = secret
+        self.token_url = urljoin(self.base_url, 'token')
 
         client = BackendApplicationClient(client_id=key)
         OAuth2Session.__init__(self, client=client)
@@ -44,7 +55,11 @@ class SierraSession(OAuth2Session):
             "Accept": "application/json"}
         self.headers.update(headers)
 
-        self.get_token()
+        try:
+            self.get_token()
+        except MissingTokenError:
+            self.close()
+            raise
 
     def get_token(self):
         """
@@ -53,24 +68,25 @@ class SierraSession(OAuth2Session):
         """
 
         auth = HTTPBasicAuth(self.key, self.secret)
-        self.fetch_token(token_url=f'{self.base_url}/token', auth=auth)
+        self.fetch_token(token_url=self.token_url, auth=auth)
         if self.access_token is not None:
             headers = {"Authorization": f"Bearer {self.access_token}"}
             self.headers.update(headers)
 
-    def get_bib_by_id(self, bid, full_bib=False):
+    def get_bib_by_id(self, bid, full_bib=False, response_format='json'):
         """
-        Makes GET /bibs/{id} request - request for a bib resource by its id
+        Makes GET /bibs/{id} request - for a bib resource by its id
         args:
             bid: str, Sierra bib number (omit leading b and last character)
             full_bib: Boolean, specifies if to request full bib or
                       abbreviated resource
+            response_format: str, default 'json', available 'xml'
         returns tuple:
             API response object and dictionary that includes
-            request URL, fullness of bib requested, and response code
+            request URL and response code
         """
 
-        endpoint = urljoin(self.base_url, '/bibs/')
+        endpoint = urljoin(self.base_url, 'bibs/')
         url = urljoin(endpoint, bid)
 
         if full_bib:
@@ -79,15 +95,18 @@ class SierraSession(OAuth2Session):
         else:
             payload = {}
 
-        req = Request('GET', url, params=payload)
+        if response_format == 'xml':
+            request_headers = {"Accept": "application/xml"}
+        else:
+            request_headers = {}
+
+        req = Request('GET', url, params=payload, headers=request_headers)
         prepped = self.prepare_request(req)
-        req_url = prepped.url
+        request_url = prepped.url
 
         response = self.send(prepped, timeout=5)
 
-        return (
-            response,
-            {
-                'request_url': req_url,
-                'full_bib_requested': full_bib,
-                'response_code': response.status_code})
+        return {
+            'request_url': request_url,
+            'response_code': response.status_code,
+            'response': response}
