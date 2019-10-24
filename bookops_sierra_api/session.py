@@ -1,3 +1,4 @@
+from datetime import date, datetime, timedelta
 from urllib.parse import urljoin
 
 from oauthlib.oauth2 import BackendApplicationClient
@@ -5,6 +6,10 @@ from requests import Request
 from requests.auth import HTTPBasicAuth
 from requests_oauthlib import OAuth2Session
 from oauthlib.oauth2.rfc6749.errors import MissingTokenError
+from requests.exceptions import ConnectionError
+
+
+TIMEOUT = 5
 
 
 class SierraSession(OAuth2Session):
@@ -60,20 +65,34 @@ class SierraSession(OAuth2Session):
         except MissingTokenError:
             self.close()
             raise
+        except ConnectionError:
+            self.close()
+            raise
+
+    def _set_response_format_header(self, response_format):
+        # set reponse format
+        # default session header is 'Accept : appplication/json'
+        # so there is no need to change unless user requests other
+
+        if response_format == 'xml':
+            request_headers = {"Accept": "application/xml"}
+        else:
+            request_headers = {}
+
+        return request_headers
 
     def get_token(self):
         """
         Uses basic authorization pattern to fetch access token from Sierra API.
         Updates session header with bearer authentication
         """
-
         auth = HTTPBasicAuth(self.key, self.secret)
         self.fetch_token(token_url=self.token_url, auth=auth)
         if self.access_token is not None:
             headers = {"Authorization": f"Bearer {self.access_token}"}
             self.headers.update(headers)
 
-    def get_bib_by_id(self, bid, full_bib=False, response_format='json'):
+    def bib_get_by_id(self, bid, fields='default', response_format='json'):
         """
         Makes GET /bibs/{id} request - for a bib resource by its id
         args:
@@ -81,32 +100,201 @@ class SierraSession(OAuth2Session):
             full_bib: Boolean, specifies if to request full bib or
                       abbreviated resource
             response_format: str, default 'json', available 'xml'
-        returns tuple:
-            API response object and dictionary that includes
-            request URL and response code
+        returns:
+            response: requests.Response object
         """
 
-        endpoint = urljoin(self.base_url, 'bibs/')
-        url = urljoin(endpoint, bid)
+        url = urljoin(self.base_url, f'bibs/{bid}')
 
-        if full_bib:
-            payload = {
-                "fields": "fixedFields,varFields"}
+        payload = {
+            "fields": fields
+        }
+
+        request_headers = self._set_response_format_header(response_format)
+
+        response = self.get(
+            url, params=payload, headers=request_headers, timeout=TIMEOUT)
+
+        return response
+
+    def hold_on_item(
+            self, pid, iid, pickup_location, needed_by='',
+            note='', response_format='json'):
+        """
+        POST /patrons/{id}/holds/requests endpoint.
+        Platces item (iid) hold for specified account (pid).
+
+        Successful Sierra API hold requests returns HTTP code 204
+
+        args:
+            pid: str, patron id account
+            iid: int, Sierra item id number
+            loc: str, pickup location
+            needed_by: str, date in ISO 8601 format (yyyy-MM-dd)
+            note: str, informational note related to the hold
+        returns:
+            response: requests.Response object
+        """
+
+        if not isinstance(pid, int):
+            raise TypeError('patron id (pid) must be an integer')
+        if not isinstance(iid, int):
+            raise TypeError('item number (iid) argument must be an integer')
+        if not isinstance(pickup_location, str):
+            raise TypeError('location code argument must be a string')
+        if not isinstance(needed_by, str):
+            raise TypeError('needed_by parameter must a string')
+        if not isinstance(note, str):
+            raise TypeError('note parameter must be a string')
+
+        # set reponse format
+        request_headers = self._set_response_format_header(response_format)
+
+        # set neededBy date
+        if needed_by:
+            try:
+                datetime.strptime(needed_by, '%Y-%m-%d')
+            except ValueError:
+                raise
         else:
-            payload = {}
+            # default setting
+            needed_by = date.today() + timedelta(days=14)
+            needed_by = needed_by.strftime('%Y-%m-%d')
 
-        if response_format == 'xml':
-            request_headers = {"Accept": "application/xml"}
-        else:
-            request_headers = {}
+        # construct request url
+        url = urljoin(self.base_url, f'patrons/{pid}/holds/requests')
 
-        req = Request('GET', url, params=payload, headers=request_headers)
-        prepped = self.prepare_request(req)
-        request_url = prepped.url
+        request_body = {
+            'recordType': 'i',
+            'recordNumber': iid,
+            'pickupLocation': pickup_location,
+            'neededBy': needed_by,
+            'note': note
+        }
 
-        response = self.send(prepped, timeout=5)
+        response = self.post(
+            url, json=request_body, headers=request_headers, timeout=TIMEOUT)
 
-        return {
-            'request_url': request_url,
-            'response_code': response.status_code,
-            'response': response}
+        return response
+
+    def hold_delete_by_id(self, hid, response_format='json'):
+        """
+        Delete single hold by hold id
+        DELETE /patrons/holds/{holdId}
+        Sierra API returns HTTP code 204 if deletion successful,
+        its response does not include any content
+
+        args:
+            hid: int, hold id
+        returns:
+            response: requests.Response object
+
+        """
+        if not isinstance(hid, int):
+            raise TypeError('hold id must be an integer')
+
+        # set reponse format
+        request_headers = self._set_response_format_header(response_format)
+
+        # construct request url
+        url = urljoin(self.base_url, f'patrons/holds/{hid}')
+
+        response = self.delete(url, headers=request_headers, timeout=TIMEOUT)
+
+        return response
+
+    def hold_get_by_id(
+            self, hid, fields='default',
+            response_format='json'):
+        """
+        Retrieves hold data by hold id
+        GET patrons/holds/{holdId}
+
+        args:
+            hid: int, hold number
+            response_fields
+            respoinse_format: str, 'json' or 'xml'
+        """
+
+        # set reponse format
+        request_headers = self._set_response_format_header(response_format)
+
+        # construct request url
+        url = urljoin(self.base_url, f'patrons/holds/{hid}')
+
+        payload = {
+            'fields': fields
+        }
+
+        response = self.get(
+            url, params=payload, headers=request_headers, timeout=TIMEOUT)
+
+        return response
+
+    def hold_get_by_patron_id(
+            self, pid, limit=50, offset=0, fields='default',
+            response_format='json'):
+        """
+        Retrieves all holds for particular account
+        GET /patrons/{id}/holds
+
+        args:
+            pid: int, patron id
+            limit: int, maximum number of results
+            offset: int, the begining record of the result set retuned
+            fields: str, comma-delimited list of fields to retrieve
+        returns:
+            response: requests.Response object
+
+        """
+        if not isinstance(pid, int):
+            raise TypeError('patron id (pid) must be an integer')
+        if not isinstance(limit, int):
+            raise TypeError('limit parameter must be an integer')
+        if not isinstance(offset, int):
+            raise TypeError('offset parameter must be an intege')
+        if not isinstance(fields, str):
+            raise TypeError('fields paramater must be a string')
+
+        # set request headers
+        request_headers = self._set_response_format_header(response_format)
+
+        # construct endpoint url
+        url = urljoin(self.base_url, f'patrons/{pid}/holds')
+
+        # encode request parameters
+        payload = {
+            "limit": limit,
+            "offset": offset,
+            "fields": fields
+        }
+
+        response = self.get(
+            url, params=payload, headers=request_headers, timeout=TIMEOUT)
+
+        return response
+
+    def hold_delete_all(self, pid, response_format='json'):
+        """
+        Deletes all holds for specified patron account
+        DELETE /patrons/{id}/holds
+
+        args:
+            pid: int, patron id
+            response_format: str, 'json' or 'xml'
+        returns:
+            response: requests.Response object
+        """
+
+        if not isinstance(pid, int):
+            raise TypeError('patron id (pid) argument must be an integer')
+        if not isinstance(response_format, str):
+            raise TypeError('response_format parameter must be a string')
+
+        url = urljoin(self.base_url, f'patrons/{pid}/holds')
+
+        request_headers = self._set_response_format_header(response_format)
+
+        response = self.delete(url, headers=request_headers)
+
+        return response
