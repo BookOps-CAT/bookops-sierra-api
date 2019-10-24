@@ -2,7 +2,6 @@ from datetime import date, datetime, timedelta
 from urllib.parse import urljoin
 
 from oauthlib.oauth2 import BackendApplicationClient
-from requests import Request
 from requests.auth import HTTPBasicAuth
 from requests_oauthlib import OAuth2Session
 from oauthlib.oauth2.rfc6749.errors import MissingTokenError
@@ -117,7 +116,7 @@ class SierraSession(OAuth2Session):
 
         return response
 
-    def hold_on_item(
+    def hold_place_on_item(
             self, pid, iid, pickup_location, needed_by='',
             note='', response_format='json'):
         """
@@ -231,7 +230,7 @@ class SierraSession(OAuth2Session):
 
         return response
 
-    def hold_get_by_patron_id(
+    def hold_get_all(
             self, pid, limit=50, offset=0, fields='default',
             response_format='json'):
         """
