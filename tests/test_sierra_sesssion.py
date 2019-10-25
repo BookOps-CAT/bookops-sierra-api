@@ -77,20 +77,10 @@ class TestSierraSession(unittest.TestCase):
             self.assertIsInstance(
                 session.token, OAuth2Token)
 
-    @unittest.skip('only tested in full run')
+    # @unittest.skip('only tested in full run')
     def test_successful_sierra_sesssion_instance_has_access_token_parameter(self):
         with SierraSession(self.base, self.key, self.secret) as session:
             self.assertIsInstance(session.access_token, str)
-
-
-    def test_get_bib_by_id(self):
-        bid = '10000002'
-        with SierraSession(self.base, self.key, self.secret) as session:
-            resp = session.get_bib_by_id(bid)
-            print(resp['request_url'])
-            print(resp['response_code'])
-            print(resp['response'].content)
-            print(resp['response'].text)
 
 
 if __name__ == '__main__':

@@ -8,12 +8,13 @@ from oauthlib.oauth2.rfc6749.errors import MissingTokenError
 from requests.exceptions import ConnectionError
 
 
+
 TIMEOUT = 5
 
 
 class SierraSession(OAuth2Session):
     """
-    BookOps Sierra API session wrapper that utilizes Python Requests library
+    BookOps Sierra API session wrapper that utilizes Python Requests library.
 
     args:
         base_url: str, base url of your library Sierra API
@@ -25,7 +26,7 @@ class SierraSession(OAuth2Session):
     Python Requests documentation:
         https://requests.kennethreitz.org/en/master/
 
-    Inherits methods of OAuth2Session (OAuth 2.0) which by itself inherits from
+    Inherits methods of requests_oauthlib.OAuth2Session (OAuth 2.0) which by itself inherits from
     requests.Session class
 
     When opened, SierraSession automatically requests an access token
@@ -55,7 +56,7 @@ class SierraSession(OAuth2Session):
         OAuth2Session.__init__(self, client=client)
 
         headers = {
-            "User-Agent": "BookOps-Sierra-API-wrapper",
+            "User-Agent": f"BookOps-Sierra-API-wrapper",
             "Accept": "application/json"}
         self.headers.update(headers)
 
@@ -100,7 +101,7 @@ class SierraSession(OAuth2Session):
                       abbreviated resource
             response_format: str, default 'json', available 'xml'
         returns:
-            response: requests.Response object
+            response: requests.models.Response instance
         """
 
         url = urljoin(self.base_url, f'bibs/{bid}')
@@ -132,7 +133,7 @@ class SierraSession(OAuth2Session):
             needed_by: str, date in ISO 8601 format (yyyy-MM-dd)
             note: str, informational note related to the hold
         returns:
-            response: requests.Response object
+            response: requests.models.Response instance
         """
 
         if not isinstance(pid, int):
@@ -186,7 +187,7 @@ class SierraSession(OAuth2Session):
         args:
             hid: int, hold id
         returns:
-            response: requests.Response object
+            response: requests.models.Response instance
 
         """
         if not isinstance(hid, int):
@@ -213,6 +214,9 @@ class SierraSession(OAuth2Session):
             hid: int, hold number
             response_fields
             respoinse_format: str, 'json' or 'xml'
+
+        returns:
+            response: requests.models.Response instance
         """
 
         # set reponse format
@@ -243,7 +247,7 @@ class SierraSession(OAuth2Session):
             offset: int, the begining record of the result set retuned
             fields: str, comma-delimited list of fields to retrieve
         returns:
-            response: requests.Response object
+            response: requests.models.Response instance
 
         """
         if not isinstance(pid, int):
@@ -282,7 +286,7 @@ class SierraSession(OAuth2Session):
             pid: int, patron id
             response_format: str, 'json' or 'xml'
         returns:
-            response: requests.Response object
+            response: requests.models.Response instance
         """
 
         if not isinstance(pid, int):

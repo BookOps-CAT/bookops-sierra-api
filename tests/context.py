@@ -7,4 +7,5 @@ sys.path.insert(0, p)
 
 
 from bookops_sierra_api import __version__
+from bookops_sierra_api import session
 from bookops_sierra_api.session import SierraSession
