@@ -6,7 +6,7 @@ authors = ["klinga <klingaroo@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-requests = "^2.22"
+requests = "^2.31"
 oauthlib = "^3.1"
 requests-oauthlib = "^1.2"
 
